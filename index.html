@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1A70B0">
-<meta name="description" content="Smart Book Fruits A to F: scan the textbook QR and learn with Pip in 3D and AR.">
+<meta name="description" content="Smart Book Fruits A to F: scan the textbook QR and learn with Fenn the explorer fox in 3D and AR.">
 <title>Smart Book Fruits</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,7 +12,7 @@
 <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" onload="renderQR()"></script>
 <style>
-/* Layout: one column lesson (letter → Pip's 3D stage → parts → fact → check), max 720px, Smart Book tokens */
+/* Layout: one column lesson (letter → Fenn's 3D stage → parts → fact → check), max 720px, Smart Book tokens */
 :root{
   --paper:#FFFCF5; --card:#FFFFFF; --sky:#E6F1F9; --ink:#172340; --ink-muted:#4F5B73; --line:#DCE3EC;
   --jacket:#1A70B0; --on-jacket:#FFFFFF; --trim:#E8691A; --fur:#F2B33D; --leaf:#2E8540; --berry:#C62F3A;
@@ -77,10 +77,11 @@ model-viewer{width:100%;height:min(62vh,520px);min-height:380px;background:trans
   border-radius:20px 20px 20px 6px;padding:12px 16px;font-size:19px;line-height:1.45;font-weight:500;box-shadow:var(--shadow-card);z-index:3}
 .bubble .who{display:block;font-family:var(--f-display);font-weight:800;color:var(--trim);font-size:15px;line-height:1}
 .bubble .w.on{background:var(--fur);color:var(--fixed-ink);border-radius:4px;box-shadow:0 0 0 2px var(--fur)}
-.pip{position:absolute;right:-6px;bottom:44px;height:46%;max-height:240px;pointer-events:none;z-index:2;transform-origin:50% 100%;
-  filter:drop-shadow(0 8px 10px rgba(23,35,64,.18))}
-.talking .pip{animation:talk .45s ease-in-out infinite alternate}
-@keyframes talk{from{transform:translateY(0) rotate(0)}to{transform:translateY(-6px) rotate(-1.5deg)}}
+/* Fenn sways gently all the time; --talk (0 to 1, set from the voice) adds the hop and stretch while speaking */
+.guide{position:absolute;right:-6px;bottom:44px;height:46%;max-height:240px;pointer-events:none;z-index:2;transform-origin:50% 100%;
+  filter:drop-shadow(0 8px 10px rgba(23,35,64,.18));animation:sway 3.8s ease-in-out infinite;
+  transform:translateY(calc(var(--talk,0) * -10px)) rotate(calc(var(--talk,0) * -3deg)) scale(calc(1 - var(--talk,0) * .02),calc(1 + var(--talk,0) * .06))}
+@keyframes sway{50%{rotate:1.2deg;translate:0 -3px}}
 .stage-bar{position:absolute;left:0;right:0;bottom:0;display:flex;gap:8px;justify-content:space-between;align-items:center;
   padding:8px 10px;z-index:4;flex-wrap:wrap}
 .chip{min-height:40px;padding:0 14px;border-radius:999px;border:2px solid var(--line);background:var(--card);font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:6px}
@@ -146,10 +147,10 @@ model-viewer{width:100%;height:min(62vh,520px);min-height:380px;background:trans
   .pair{font-size:96px}
   .word{font-size:38px}
   .bubble{font-size:17px}
-  .pip{height:34%}
+  .guide{height:34%}
   .hint{display:none}
 }
-@media (prefers-reduced-motion:reduce){.talking .pip{animation:none}}
+@media (prefers-reduced-motion:reduce){.guide{animation:none;transform:none}}
 </style>
 
 </head>
@@ -168,7 +169,7 @@ model-viewer{width:100%;height:min(62vh,520px);min-height:380px;background:trans
       <div class="row">
         <button class="btn btn-primary" id="start">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l11-6.5a1 1 0 0 0 0-1.72l-11-6.5A1 1 0 0 0 8 5.5Z"/></svg>
-          <span>Learn with Pip</span>
+          <span>Learn with Fenn</span>
         </button>
         <button class="btn btn-quiet" id="sound" aria-pressed="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path id="wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
@@ -178,17 +179,17 @@ model-viewer{width:100%;height:min(62vh,520px);min-height:380px;background:trans
     </div>
   </section>
 
-  <section class="stage" id="stage" aria-label="Pip's 3D lesson">
-    <div class="bubble" aria-live="polite"><span class="who">Pip</span><span id="say">Hi! I'm Pip. Tap “Learn with Pip” and I'll show you the apple.</span></div>
+  <section class="stage" id="stage" aria-label="Fenn's 3D lesson">
+    <div class="bubble" aria-live="polite"><span class="who">Fenn</span><span id="say">Hi! I'm Fenn, the explorer fox. Tap “Learn with Fenn” and I'll show you the apple.</span></div>
     <model-viewer id="mv" src="models/apple.glb" alt="A 3D apple you can turn" camera-controls auto-rotate auto-rotate-delay="0" rotation-per-second="18deg"
       shadow-intensity="0.9" shadow-softness="0.8" exposure="1.05" interaction-prompt="none" camera-orbit="20deg 72deg 0.9m" max-camera-orbit="auto auto 2m"
       ar ar-modes="webxr scene-viewer quick-look" ar-scale="auto" ar-placement="floor" touch-action="pan-y">
-      <button slot="ar-button" class="btn btn-ar" style="position:absolute;left:10px;bottom:10px;z-index:5">
+      <button slot="ar-button" id="arBtn" class="btn btn-ar" style="position:absolute;left:10px;bottom:10px;z-index:5">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>
         See it on my table
       </button>
     </model-viewer>
-    <img class="pip" id="pip" src="pip.webp" alt="Pip the fennec fox pointing at the fruit">
+    <img class="guide" id="guide" src="pip.webp" alt="Fenn the fennec fox pointing at the fruit">
     <div class="hint" id="hint">Drag to turn · pinch to zoom</div>
     <div class="stage-bar">
       <span></span>
@@ -198,11 +199,11 @@ model-viewer{width:100%;height:min(62vh,520px);min-height:380px;background:trans
       </button>
     </div>
   </section>
-  <p class="ar-note" id="arNote">On a phone, “See it on my table” puts the fruit in your room through the camera. Use Chrome on Android or Safari on iPhone.</p>
+  <p class="ar-note" id="arNote">On a phone, “See it on my table” puts the letter and the fruit in your room through the camera. Use Chrome on Android or Safari on iPhone.</p>
 
   <section class="section" aria-labelledby="partsH">
     <h2 id="partsH">Look closely</h2>
-    <p style="color:var(--ink-muted)">Tap a part. Pip will find it on the fruit.</p>
+    <p style="color:var(--ink-muted)">Tap a part. Fenn will find it on the fruit.</p>
     <div class="parts" id="parts"></div>
   </section>
 
@@ -236,7 +237,7 @@ model-viewer{width:100%;height:min(62vh,520px);min-height:380px;background:trans
       <input id="name" autocomplete="given-name" placeholder="e.g. Anu">
     </div>
     <div class="name-row voice-row" hidden>
-      <label for="voiceSel" class="label">Pip's voice</label>
+      <label for="voiceSel" class="label">Fenn's voice</label>
       <select id="voiceSel"></select>
     </div>
     <a class="btn btn-primary" id="nextBtn" href="#banana" style="text-decoration:none">Next: B for Banana →</a>
@@ -259,19 +260,19 @@ const FRUITS = [
  { id:'apple', L:'A', word:'Apple', model:'models/apple.glb', orbit:'20deg 72deg 0.55m', target:'0m 0.08m 0m',
    phonics:'A is for apple. a, a, apple!',
    script:[
-     ['Hello {name}! I am Pip. Today we explore the letter A.'],
+     ['Hello {name}! I am Fenn, the explorer fox. Today we explore the letter A.'],
      ['A says a, a. A is for apple!'],
-     ['An apple is a round fruit. It grows on an apple tree.'],
-     ['This is the skin. It keeps the apple safe inside.','skin'],
-     ['This little brown stick is the stalk. It held the apple on the tree.','stalk'],
-     ['And this is a leaf. Leaves help the tree make food from sunlight.','leaf'],
-     ['Inside the apple is soft flesh, and a core with small brown seeds.','inside'],
-     ['Tap “See it on my table” to put the apple in your room. Then try my questions!']
+     ['Look what I found! An apple is a round fruit. It grows on an apple tree.'],
+     ['Look closely. This is the skin. It keeps the apple safe inside.','skin'],
+     ['Can you see this little brown stick? It is the stalk. It held the apple on the tree.','stalk'],
+     ['Ooh, a leaf! Leaves help the tree make food from sunlight.','leaf'],
+     ['Now let us peek inside. Soft flesh, and a core with small brown seeds.','inside'],
+     ['Tap “See it on my table” to put the letter A and the apple in your room. Then try my questions!']
    ],
    parts:[
-     {k:'skin', name:'Skin', note:'Thin and shiny', pos:'0.094m 0.07m 0.02m', normal:'1m 0m 0m', say:'The skin is thin and shiny. It can be red, green or yellow.'},
-     {k:'stalk', name:'Stalk', note:'Held it on the tree', pos:'0.012m 0.176m 0.003m', normal:'0m 1m 0m', say:'The stalk joined the apple to its tree.'},
-     {k:'leaf', name:'Leaf', note:'Makes food from sun', pos:'0.045m 0.18m -0.03m', normal:'0m 1m 0m', say:'A leaf. Leaves use sunlight to make food for the tree.'},
+     {k:'skin', name:'Skin', note:'Thin and shiny', pos:'0.094m 0.07m 0.02m', normal:'1m 0m 0m', say:'Good spot! The skin is thin and shiny. It can be red, green or yellow.'},
+     {k:'stalk', name:'Stalk', note:'Held it on the tree', pos:'0.012m 0.176m 0.003m', normal:'0m 1m 0m', say:'You found the stalk! It joined the apple to its tree.'},
+     {k:'leaf', name:'Leaf', note:'Makes food from sun', pos:'0.045m 0.18m -0.03m', normal:'0m 1m 0m', say:'A leaf! Leaves use sunlight to make food for the tree.'},
      {k:'inside', name:'Flesh & seeds', note:'Inside the apple', pos:'0m 0.07m 0.094m', normal:'0m 0m 1m', say:'Inside is the crunchy flesh we eat, and the core with tiny seeds.'}
    ],
    fact:'An apple seed can grow into a whole apple tree. The tree takes a few years before it gives apples.',
@@ -285,19 +286,19 @@ const FRUITS = [
  { id:'banana', L:'B', word:'Banana', model:'models/banana.glb', orbit:'0deg 75deg 0.75m', target:'0m 0.07m 0m',
    phonics:'B is for banana. b, b, banana!',
    script:[
-     ['Hi {name}! Now we explore the letter B.'],
+     ['Hi {name}! Fenn here. Now we explore the letter B.'],
      ['B says b, b. B is for banana!'],
-     ['A banana is long and curved. Bananas grow in big bunches.'],
+     ['A banana is long and curved, like a smile. Bananas grow in big bunches.'],
      ['This is the peel. It is green at first and turns yellow when the banana is ripe.','peel'],
-     ['Here is the stem end. It joined the banana to the bunch.','stem'],
-     ['This dark spot is the tip, where a flower once was.','tip'],
-     ['Inside is soft, sweet fruit. The tiny black dots are its seeds.','inside'],
-     ['Put the banana on your table, then answer my questions!']
+     ['Follow my finger. Here is the stem end. It joined the banana to the bunch.','stem'],
+     ['Can you spot the dark tip? A flower once grew here.','tip'],
+     ['Now peek inside. Soft, sweet fruit! The tiny black dots are its seeds.','inside'],
+     ['Put the letter B and the banana on your table. Then answer my questions!']
    ],
    parts:[
      {k:'peel', name:'Peel', note:'Green, then yellow', pos:'0m 0.03m 0.031m', normal:'0m 0m 1m', say:'The peel protects the soft banana inside. We peel it before eating.'},
      {k:'stem', name:'Stem end', note:'Joined to the bunch', pos:'-0.19m 0.152m 0m', normal:'-1m 0m 0m', say:'The stem end held the banana in the bunch.'},
-     {k:'tip', name:'Tip', note:'Where the flower was', pos:'0.165m 0.12m 0m', normal:'1m 0m 0m', say:'At the tip, a little flower once grew.'},
+     {k:'tip', name:'Tip', note:'Where the flower was', pos:'0.165m 0.12m 0m', normal:'1m 0m 0m', say:'Sharp eyes! At the tip, a little flower once grew.'},
      {k:'inside', name:'Fruit & seeds', note:'Soft and sweet', pos:'0m 0.005m 0m', normal:'0m -1m 0m', say:'Inside is soft, sweet fruit with tiny black seeds.'}
    ],
    fact:'India grows more bananas than any other country in the world. A bunch of bananas is called a hand, and one banana is a finger!',
@@ -311,14 +312,14 @@ const FRUITS = [
  { id:'cherry', L:'C', word:'Cherry', model:'models/cherry.glb', orbit:'0deg 75deg 0.7m', target:'0m 0.12m 0m',
    phonics:'C is for cherry. ch, ch, cherry!',
    script:[
-     ['Hello {name}! Let us explore the letter C.'],
+     ['Hello {name}! Ready, explorer? Let us find the letter C.'],
      ['In cherry, C and H say ch, ch. Cherry!'],
-     ['Cherries are small, round and shiny. They often grow in pairs.'],
+     ['Cherries are small, round and shiny. They often grow in pairs, like best friends.'],
      ['This is the fruit. It is red, juicy and sweet.','fruit'],
-     ['These long green stalks hold the cherries to the tree.','stalk'],
+     ['Follow the long green stalks. They hold the cherries to the tree.','stalk'],
      ['Here is a leaf from the cherry tree.','leaf'],
-     ['Inside each cherry is one hard stone. Do not eat the stone!','stone'],
-     ['Put the cherries on your table, then try my questions!']
+     ['Here is a secret. Inside each cherry is one hard stone. Do not eat the stone!','stone'],
+     ['Put the letter C and the cherries on your table. Then try my questions!']
    ],
    parts:[
      {k:'fruit', name:'Fruit', note:'Red and juicy', pos:'-0.045m 0.04m 0.05m', normal:'0m 0m 1m', say:'The cherry fruit is red, round and juicy.'},
@@ -337,14 +338,14 @@ const FRUITS = [
  { id:'dates', L:'D', word:'Dates', model:'models/dates.glb', orbit:'20deg 58deg 0.5m', target:'0m 0.03m 0.02m',
    phonics:'D is for dates. d, d, dates!',
    script:[
-     ['Hi {name}! Now the letter D.'],
+     ['Hi {name}! My map points to the letter D.'],
      ['D says d, d. D is for dates!'],
      ['Dates are sweet brown fruits. They grow on tall date palm trees.'],
-     ['Look at the skin. It is brown and wrinkly.','skin'],
+     ['Look closely at the skin. It is brown and wrinkly.','skin'],
      ['Dates are long and oval, like a little egg.','shape'],
-     ['Inside a date there is one long seed.','seed'],
-     ['Date palms grow in hot, dry places, in big hanging bunches.'],
-     ['Put the dates on your table, then answer my questions!']
+     ['Inside a date hides one long seed.','seed'],
+     ['Date palms grow in hot, dry places, in big hanging bunches. I am a desert fox, so I know them well!'],
+     ['Put the letter D and the dates on your table. Then answer my questions!']
    ],
    parts:[
      {k:'skin', name:'Skin', note:'Brown and wrinkly', pos:'0m 0.03m 0.09m', normal:'0m 0m 1m', say:'The skin is thin, brown and wrinkly.'},
@@ -362,14 +363,14 @@ const FRUITS = [
  { id:'elderberry', L:'E', word:'Elderberry', model:'models/elderberry.glb', orbit:'0deg 55deg 0.6m', target:'0m 0.13m 0m',
    phonics:'E is for elderberry. e, e, elderberry!',
    script:[
-     ['Hello {name}! Let us explore the letter E.'],
+     ['Hello {name}! Telescope ready? Let us explore the letter E.'],
      ['E says e, e. E is for elderberry!'],
      ['Elderberries are tiny, dark purple berries. They grow in big flat bunches.'],
-     ['Each little ball is one berry.','berry'],
+     ['Use your explorer eyes. Each little ball is one berry.','berry'],
      ['Thin red stalks spread out like an umbrella.','stalks'],
      ['A strong stem holds the whole bunch.','stem'],
      ['Important! Raw elderberries can make you sick. Grown-ups cook them first.'],
-     ['Put the berries on your table, then try my questions!']
+     ['Put the letter E and the berries on your table. Then try my questions!']
    ],
    parts:[
      {k:'berry', name:'Berries', note:'Tiny and purple', pos:'0.065m 0.19m 0m', normal:'0m 1m 0m', say:'Each tiny ball is an elderberry.'},
@@ -388,14 +389,14 @@ const FRUITS = [
  { id:'fig', L:'F', word:'Fig', model:'models/fig.glb', orbit:'15deg 75deg 0.6m', target:'0m 0.08m 0m',
    phonics:'F is for fig. f, f, fig!',
    script:[
-     ['Hi {name}! Last one: the letter F.'],
-     ['F says f, f. F is for fig!'],
+     ['Hi {name}! Last stop on our map: the letter F.'],
+     ['F says f, f. F is for fig! F is for fox too. That is me!'],
      ['A fig is soft and shaped like a drop of water. In India, dried figs are called anjeer.'],
      ['This is the skin. It is purple and soft.','skin'],
      ['Here is the stalk at the top.','stalk'],
-     ['At the bottom is a tiny hole called the eye.','eye'],
+     ['Now turn it over. At the bottom is a tiny hole called the eye.','eye'],
      ['Inside, a fig is full of tiny seeds. They go crunch when you chew!','inside'],
-     ['Put the fig on your table, then answer my questions!']
+     ['Put the letter F and the fig on your table. Then answer my questions. Well explored {name}!']
    ],
    parts:[
      {k:'skin', name:'Skin', note:'Purple and soft', pos:'0.076m 0.045m 0m', normal:'1m 0m 0m', say:'The fig skin is purple, green near the top.'},
@@ -422,10 +423,13 @@ $('name').addEventListener('input', e => store.set('sb-name', e.target.value.tri
 const childName = () => $('name').value.trim() || 'friend';
 
 /* ---------- voice ---------- */
-// 1) Recorded neural voice: audio/manifest.json maps a line key -> mp3 file. Used first when present.
+// 1) Recorded voice: audio/manifest.json maps a line key -> audio file. Used first when present.
 // 2) Otherwise the best Indian-English voice on the device (Google / Microsoft Natural / Apple en-IN).
 const AUDIO = {}; let curAudio = null;
-fetch('audio/manifest.json', {cache:'no-cache'}).then(r => r.ok ? r.json() : {}).then(m => Object.assign(AUDIO, m)).catch(() => {});
+fetch('audio/manifest.json', {cache:'no-cache'}).then(r => r.ok ? r.json() : {}).then(m => { Object.assign(AUDIO, m); pickVoice(); }).catch(() => {});
+// audio/levels.json maps an audio file -> its loudness, 20 steps a second, as digits 0-9. It drives Fenn's talking animation.
+const LEVELS = {};
+fetch('audio/levels.json', {cache:'no-cache'}).then(r => r.ok ? r.json() : {}).then(m => Object.assign(LEVELS, m)).catch(() => {});
 function keyOf(t){ let h = 5381; for (const ch of t) h = (((h << 5) + h) + ch.codePointAt(0)) >>> 0; return h.toString(16); }
 const spokenForm = t => t.replace(/[“”]/g, '').replace(/\s*\{name\}/g, '').replace(/\s+/g, ' ').trim();
 
@@ -483,11 +487,11 @@ function speak(text, keyText){
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text.replace(/[“”]/g,''));
       if (voice) u.voice = voice;
-      u.lang = voice ? voice.lang : 'en-IN'; u.rate = .94; u.pitch = 1.04;
+      u.lang = voice ? voice.lang : 'en-IN'; u.rate = .9; u.pitch = 1.2;
       u.onstart = () => stage.classList.add('talking');
       u.onboundary = e => { words.forEach(w => w.classList.toggle('on', e.charIndex >= +w.dataset.i && e.charIndex < +w.dataset.e)); };
       u.onend = fin; u.onerror = fin;
-      stage.classList.add('talking');
+      stage.classList.add('talking'); animateTalk();
       speechSynthesis.speak(u);
       setTimeout(fin, Math.max(4000, text.length * 120));
     };
@@ -501,7 +505,7 @@ function speak(text, keyText){
         const c = a.currentTime / a.duration * total;
         words.forEach(w => w.classList.toggle('on', c >= +w.dataset.i && c < +w.dataset.e + 1));
       };
-      a.onplay = () => stage.classList.add('talking');
+      a.onplay = () => { stage.classList.add('talking'); animateTalk(a); };
       a.onended = fin; a.onpause = () => { if (a.ended || a !== curAudio || a.currentTime > 0) fin(); };
       a.onerror = () => { if (!done) tts(); };
       a.play().catch(() => { if (!done) tts(); });
@@ -509,6 +513,23 @@ function speak(text, keyText){
     }
     tts();
   });
+}
+// While Fenn speaks, --talk follows the voice: a recording's own loudness curve when we have one,
+// otherwise a soft pulse at about the pace of speech.
+let talkRaf = 0;
+function animateTalk(audio){
+  cancelAnimationFrame(talkRaf);
+  const guide = $('guide'), env = audio && LEVELS[audio.getAttribute('src')];
+  let level = 0, pulse = 0, nextPulse = 0;
+  const tick = now => {
+    if (!stage.classList.contains('talking')){ guide.style.removeProperty('--talk'); return; }
+    if (!env && now > nextPulse){ pulse = .5 + Math.random() * .5; nextPulse = now + 170 + Math.random() * 160; }
+    pulse *= .88;
+    level += ((env ? (+env[Math.floor(audio.currentTime * 20)] || 0) / 9 : pulse) - level) * .4;
+    guide.style.setProperty('--talk', level.toFixed(3));
+    talkRaf = requestAnimationFrame(tick);
+  };
+  talkRaf = requestAnimationFrame(tick);
 }
 function stopVoice(){ run++; if (window.speechSynthesis) speechSynthesis.cancel(); if (curAudio){ const a = curAudio; curAudio = null; a.pause(); } stage.classList.remove('talking'); }
 
@@ -546,7 +567,7 @@ async function lesson(){
   if (me === run) resetView();
 }
 $('start').onclick = lesson;
-$('voiceSel').onchange = e => { voice = voices.find(v => v.name === e.target.value) || voice; try { localStorage.setItem(VKEY, voice.name); } catch(err){} stopVoice(); speak('Hello! I am Pip. Shall we learn about fruits?'); };
+$('voiceSel').onchange = e => { voice = voices.find(v => v.name === e.target.value) || voice; try { localStorage.setItem(VKEY, voice.name); } catch(err){} stopVoice(); speak('Hello! I am Fenn. Shall we explore some fruits?'); };
 $('sound').onclick = () => {
   soundOn = !soundOn; $('sound').setAttribute('aria-pressed', soundOn); $('soundTxt').textContent = soundOn ? 'Sound on' : 'Sound off';
   $('wave').style.display = soundOn ? '' : 'none'; if (!soundOn && window.speechSynthesis) speechSynthesis.cancel();
@@ -574,13 +595,13 @@ function renderQ(){
       if (i === Q.a){
         b.classList.add('right'); if (tries === 0) stars++; renderScore();
         $('fb').textContent = 'Yes! ' + o + ' is right.'; $('fb').className = 'feedback good';
-        if (soundOn) speak('Yes! You looked carefully.');
+        if (soundOn) speak('Yes! Sharp eyes, explorer!');
         $('opts').querySelectorAll('button').forEach(x => x.disabled = true);
         setTimeout(() => { qi++; renderQ(); }, 1400);
       } else {
         tries++; b.classList.add('wrong'); b.disabled = true;
         $('fb').textContent = 'Almost! Try another one.'; $('fb').className = 'feedback bad';
-        if (soundOn) speak('Almost! Try again.');
+        if (soundOn) speak('Almost! Look again, explorer.');
       }
     };
     $('opts').append(b);
@@ -605,17 +626,45 @@ function renderQR(){
   $('scan').hidden = false;
 }
 
+/* ---------- AR: the letter stands next to the fruit ---------- */
+// models/<fruit>-ar.glb is the fruit plus its 3D letter. The page keeps showing the plain fruit, so the letter never
+// turns its back to the child; the letter model is swapped in only while AR is open.
+const arModel = () => fruit.model.replace('.glb', '-ar.glb');
+let arOpen = false, arSession = false;
+async function openAR(e){
+  e.stopPropagation();   // model-viewer's own handler would open AR at once, with the plain fruit
+  stopVoice(); arOpen = true; mv.autoRotate = false;
+  if (mv.src !== arModel()){
+    const ready = new Promise(r => mv.addEventListener('load', r, {once:true}));
+    mv.src = arModel(); await ready;
+  }
+  mv.activateAR();
+}
+function closeAR(){
+  if (!arOpen) return;
+  arOpen = arSession = false; mv.src = fruit.model; resetView();
+}
+$('arBtn').addEventListener('click', openAR);
+// Scene Viewer and Quick Look take over the screen, so coming back to the page (or touching it again) means AR is closed.
+// WebXR stays on the page and reports its own end.
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !arSession) closeAR(); });
+document.addEventListener('pointerdown', e => { if (!arSession && !e.target.closest('#arBtn')) closeAR(); }, true);
+mv.addEventListener('ar-status', e => {
+  if (e.detail.status === 'session-started') arSession = true;
+  else if (e.detail.status === 'not-presenting' && arSession) closeAR();
+});
+
 /* ---------- load a fruit ---------- */
 function load(id){
-  stopVoice();
+  stopVoice(); arOpen = arSession = false;
   fruit = FRUITS.find(f => f.id === id || f.L.toLowerCase() === id) || FRUITS[0];
   const i = FRUITS.indexOf(fruit);
   $('letters').innerHTML = FRUITS.map(f => `<a href="#${f.id}" aria-label="${f.L} for ${f.word}" ${f === fruit ? 'aria-current="page"' : ''}>${f.L}</a>`).join('');
   $('pair').innerHTML = `${fruit.L}<small>${fruit.L.toLowerCase()}</small>`;
   $('word').innerHTML = `<span class="first">${fruit.word[0]}</span>${fruit.word.slice(1).toLowerCase()}`;
   $('phonics').textContent = fruit.phonics;
-  $('start').querySelector('span').textContent = 'Learn with Pip';
-  setBubble(`Hi! I'm Pip. Tap “Learn with Pip” and I'll show you the ${fruit.word.toLowerCase()}.`);
+  $('start').querySelector('span').textContent = 'Learn with Fenn';
+  setBubble(`Hi! I'm Fenn, the explorer fox. Tap “Learn with Fenn” and I'll show you the ${fruit.word.toLowerCase()}.`);
   mv.src = fruit.model; mv.alt = `A 3D ${fruit.word.toLowerCase()} you can turn`;
   mv.querySelectorAll('.hs').forEach(h => h.remove());
   fruit.parts.forEach(p => {
@@ -640,7 +689,10 @@ function load(id){
   qi = 0; stars = 0; renderQ(); resetView(); renderQR();
   window.scrollTo({top:0});
 }
-mv.addEventListener('load', () => { $('hint').hidden = false; });
+mv.addEventListener('load', () => {
+  $('hint').hidden = false;
+  if (mv.canActivateAR && !arOpen) fetch(arModel()).catch(() => {});   // warm the cache so AR opens quickly
+});
 mv.addEventListener('camera-change', e => { if (e.detail.source === 'user') $('hint').hidden = true; });
 customElements.whenDefined('model-viewer').then(() => {
   if (!mv.canActivateAR) $('arNote').textContent = 'AR works on phones: open this lesson on an Android phone (Chrome) or iPhone (Safari) and tap “See it on my table”.';
