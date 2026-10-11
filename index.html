@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1A70B0">
+<meta name="description" content="Smart Book Fruits A to F: scan the textbook QR and learn with Pip in 3D and AR.">
+<title>Smart Book Fruits</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@600;700;800&family=Lexend:wght@400;500;600&display=swap">
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+<style>
+/* Layout: one column lesson (letter → Pip's 3D stage → parts → fact → check), max 720px, Smart Book tokens */
+:root{
+  --paper:#FFFCF5; --card:#FFFFFF; --sky:#E6F1F9; --ink:#172340; --ink-muted:#4F5B73; --line:#DCE3EC;
+  --jacket:#1A70B0; --on-jacket:#FFFFFF; --trim:#E8691A; --fur:#F2B33D; --leaf:#2E8540; --berry:#C62F3A;
+  --fixed-ink:#172340;
+  --f-display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  --f-body:"Lexend","Segoe UI",system-ui,sans-serif;
+  --f-letter:"Andika","Century Gothic","Lexend",sans-serif;
+  --r-sm:8px; --r-md:16px; --r-lg:28px;
+  --shadow-card:0 6px 18px rgba(23,35,64,.10); --shadow-press:0 4px 0 rgba(23,35,64,.22);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#10192B; --card:#1A2640; --sky:#1E3350; --ink:#F4F1E8; --ink-muted:#B4BCCB; --line:#2C3B57;
+  --jacket:#4FA3E0; --on-jacket:#0E1B30; --trim:#F5893F; --leaf:#5CC071; --berry:#F06A6F;
+  --shadow-card:0 6px 18px rgba(0,0,0,.35); --shadow-press:0 4px 0 rgba(0,0,0,.45); color-scheme:dark }}
+:root[data-theme="dark"]{
+  --paper:#10192B; --card:#1A2640; --sky:#1E3350; --ink:#F4F1E8; --ink-muted:#B4BCCB; --line:#2C3B57;
+  --jacket:#4FA3E0; --on-jacket:#0E1B30; --trim:#F5893F; --leaf:#5CC071; --berry:#F06A6F;
+  --shadow-card:0 6px 18px rgba(0,0,0,.35); --shadow-press:0 4px 0 rgba(0,0,0,.45); color-scheme:dark }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55;margin:0}
+.wrap{max-width:720px;margin:0 auto;padding-inline:16px;padding-block:12px 48px;display:flex;flex-direction:column;gap:24px}
+h1,h2,h3{font-family:var(--f-display);line-height:1.1;margin:0;text-wrap:balance}
+h2{font-size:26px}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--jacket);outline-offset:3px;border-radius:6px}
+.label{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-muted)}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand b{font-family:var(--f-display);font-size:22px;font-weight:800;color:var(--jacket)}
+.letters{display:flex;gap:6px;flex-wrap:wrap}
+.letters a{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;border:2px solid var(--line);
+  font-family:var(--f-letter);font-weight:700;font-size:20px;color:var(--ink);text-decoration:none;background:var(--card)}
+.letters a[aria-current="page"]{background:var(--jacket);border-color:var(--jacket);color:var(--on-jacket)}
+
+/* hero letter */
+.hero{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center;background:var(--card);border-radius:var(--r-lg);
+  padding:20px 24px;box-shadow:var(--shadow-card)}
+.pair{font-family:var(--f-letter);font-weight:700;font-size:120px;line-height:.95;color:var(--jacket);letter-spacing:-.02em;display:flex;gap:6px;align-items:baseline}
+.pair small{font-size:.72em;color:var(--trim)}
+.word{font-family:var(--f-letter);font-weight:700;font-size:44px;line-height:1.05}
+.word .first{color:var(--jacket)}
+.phonics{color:var(--ink-muted);font-size:18px;margin-top:6px}
+.hero-text{min-width:0;display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{min-height:48px;padding:0 20px;border-radius:var(--r-md);border:0;font-weight:600;font-size:16px;display:inline-flex;align-items:center;gap:8px;
+  box-shadow:var(--shadow-press);transition:transform .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(23,35,64,.22)}
+.btn-primary{background:var(--jacket);color:var(--on-jacket)}
+.btn-quiet{background:var(--card);border:2px solid var(--line);box-shadow:none}
+.btn-ar{background:var(--trim);color:var(--fixed-ink)}
+.btn svg{width:20px;height:20px;flex:none}
+
+/* stage */
+.stage{position:relative;background:var(--sky);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow-card)}
+model-viewer{width:100%;height:min(62vh,520px);min-height:380px;background:transparent;--poster-color:transparent;--progress-bar-color:var(--jacket)}
+.bubble{position:absolute;left:14px;right:14px;top:14px;max-width:440px;background:var(--card);border:2px solid var(--line);
+  border-radius:20px 20px 20px 6px;padding:12px 16px;font-size:19px;line-height:1.45;font-weight:500;box-shadow:var(--shadow-card);z-index:3}
+.bubble .who{display:block;font-family:var(--f-display);font-weight:800;color:var(--trim);font-size:15px;line-height:1}
+.bubble .w.on{background:var(--fur);color:var(--fixed-ink);border-radius:4px;box-shadow:0 0 0 2px var(--fur)}
+.pip{position:absolute;right:-6px;bottom:44px;height:46%;max-height:240px;pointer-events:none;z-index:2;transform-origin:50% 100%;
+  filter:drop-shadow(0 8px 10px rgba(23,35,64,.18))}
+.talking .pip{animation:talk .45s ease-in-out infinite alternate}
+@keyframes talk{from{transform:translateY(0) rotate(0)}to{transform:translateY(-6px) rotate(-1.5deg)}}
+.stage-bar{position:absolute;left:0;right:0;bottom:0;display:flex;gap:8px;justify-content:space-between;align-items:center;
+  padding:8px 10px;z-index:4;flex-wrap:wrap}
+.chip{min-height:40px;padding:0 14px;border-radius:999px;border:2px solid var(--line);background:var(--card);font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:6px}
+.hint{position:absolute;left:14px;top:auto;bottom:64px;font-size:13px;color:var(--ink-muted);background:var(--card);padding:4px 12px;border-radius:999px;z-index:1;white-space:nowrap}
+
+/* hotspots */
+.hs{width:30px;height:30px;border-radius:50%;border:3px solid var(--card);background:var(--trim);color:var(--fixed-ink);font-weight:700;font-size:13px;
+  display:grid;place-items:center;padding:0;box-shadow:0 2px 6px rgba(0,0,0,.25);position:relative}
+.hs[data-visible]{opacity:1}
+.hs:not([data-visible]){opacity:.35}
+.hs.active{background:var(--fur);transform:scale(1.25)}
+.hs .tag{position:absolute;left:36px;top:50%;transform:translateY(-50%);background:var(--card);color:var(--ink);font-size:13px;font-weight:600;
+  padding:2px 10px;border-radius:999px;white-space:nowrap;border:2px solid var(--line);display:none}
+.hs.active .tag,.hs:hover .tag,.hs:focus-visible .tag{display:block}
+
+/* parts */
+.parts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.part{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:12px 14px;border-radius:var(--r-md);
+  background:var(--card);border:2px solid var(--line);min-width:0}
+.part b{font-family:var(--f-display);font-size:19px}
+.part span{font-size:13px;color:var(--ink-muted)}
+.part[aria-pressed="true"]{border-color:var(--fur);background:color-mix(in srgb,var(--fur) 18%,var(--card))}
+.section{display:flex;flex-direction:column;gap:12px}
+
+.fact{background:var(--sky);border-radius:var(--r-lg);padding:18px 20px;display:flex;gap:14px;align-items:flex-start}
+.fact .star{flex:none;width:40px;height:40px;border-radius:50%;background:var(--fur);display:grid;place-items:center;color:var(--fixed-ink)}
+.fact p{font-size:18px}
+.safety{border:2px dashed var(--berry);border-radius:var(--r-md);padding:10px 14px;font-weight:500}
+
+/* quiz */
+.quiz{background:var(--card);border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow-card);display:flex;flex-direction:column;gap:14px}
+.score{display:flex;gap:4px}
+.score svg{width:28px;height:28px}
+.score .on path{fill:var(--fur);stroke:var(--fur)}
+.score path{fill:none;stroke:var(--line);stroke-width:2}
+.q{font-size:20px;font-weight:500}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.opt{min-height:56px;border-radius:var(--r-md);border:2px solid var(--line);background:var(--paper);font-weight:600;font-size:17px;padding:8px 12px}
+.opt.right{border-color:var(--leaf);background:color-mix(in srgb,var(--leaf) 16%,var(--card))}
+.opt.wrong{border-color:var(--berry)}
+.feedback{min-height:24px;font-weight:600}
+.feedback.good{color:var(--leaf)} .feedback.bad{color:var(--berry)}
+.notebook{border-top:2px dashed var(--line);padding-top:14px;color:var(--ink-muted)}
+
+.next{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.name-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.name-row input{min-height:44px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;padding:0 12px;width:150px}
+.ar-note{font-size:13px;color:var(--ink-muted)}
+
+@media (max-width:560px){
+  .hero{grid-template-columns:1fr;padding:18px}
+  .pair{font-size:96px}
+  .word{font-size:38px}
+  .bubble{font-size:17px}
+  .pip{height:34%}
+  .hint{display:none}
+}
+@media (prefers-reduced-motion:reduce){.talking .pip{animation:none}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><b>Smart Book</b><span class="label">Fruits · Module 1</span></div>
+    <nav class="letters" id="letters" aria-label="Choose a letter"></nav>
+  </header>
+
+  <section class="hero" aria-labelledby="word">
+    <div class="pair" id="pair" aria-hidden="true">A<small>a</small></div>
+    <div class="hero-text">
+      <h1 class="word" id="word"><span class="first">A</span>pple</h1>
+      <p class="phonics" id="phonics">A is for apple. a, a, apple!</p>
+      <div class="row">
+        <button class="btn btn-primary" id="start">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l11-6.5a1 1 0 0 0 0-1.72l-11-6.5A1 1 0 0 0 8 5.5Z"/></svg>
+          <span>Learn with Pip</span>
+        </button>
+        <button class="btn btn-quiet" id="sound" aria-pressed="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path id="wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+          <span id="soundTxt">Sound on</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage" id="stage" aria-label="Pip's 3D lesson">
+    <div class="bubble" aria-live="polite"><span class="who">Pip</span><span id="say">Hi! I'm Pip. Tap “Learn with Pip” and I'll show you the apple.</span></div>
+    <model-viewer id="mv" src="models/apple.glb" alt="A 3D apple you can turn" camera-controls auto-rotate auto-rotate-delay="0" rotation-per-second="18deg"
+      shadow-intensity="0.9" shadow-softness="0.8" exposure="1.05" interaction-prompt="none" camera-orbit="20deg 72deg 0.9m" max-camera-orbit="auto auto 2m"
+      ar ar-modes="webxr scene-viewer quick-look" ar-scale="auto" ar-placement="floor" touch-action="pan-y">
+      <button slot="ar-button" class="btn btn-ar" style="position:absolute;left:10px;bottom:10px;z-index:5">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>
+        See it on my table
+      </button>
+    </model-viewer>
+    <img class="pip" id="pip" src="pip.webp" alt="Pip the fennec fox pointing at the fruit">
+    <div class="hint" id="hint">Drag to turn · pinch to zoom</div>
+    <div class="stage-bar">
+      <span></span>
+      <button class="chip" id="reset" type="button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+        Reset view
+      </button>
+    </div>
+  </section>
+  <p class="ar-note" id="arNote">On a phone, “See it on my table” puts the fruit in your room through the camera. Use Chrome on Android or Safari on iPhone.</p>
+
+  <section class="section" aria-labelledby="partsH">
+    <h2 id="partsH">Look closely</h2>
+    <p style="color:var(--ink-muted)">Tap a part. Pip will find it on the fruit.</p>
+    <div class="parts" id="parts"></div>
+  </section>
+
+  <section class="fact" aria-label="Did you know?">
+    <div class="star"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m12 2.8 2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9L12 2.8Z"/></svg></div>
+    <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+      <span class="label">Did you know?</span>
+      <p id="fact"></p>
+      <p class="safety" id="safety" hidden></p>
+    </div>
+  </section>
+
+  <section class="quiz" aria-labelledby="quizH">
+    <div class="row" style="justify-content:space-between">
+      <h2 id="quizH">What did you discover?</h2>
+      <div class="score" id="score" aria-label="Stars"></div>
+    </div>
+    <p class="q" id="q"></p>
+    <div class="opts" id="opts"></div>
+    <p class="feedback" id="fb" aria-live="polite"></p>
+    <div class="row">
+      <button class="btn btn-quiet" id="hearQ" type="button">Read it to me</button>
+      <button class="btn btn-quiet" id="again" type="button" hidden>Play again</button>
+    </div>
+    <p class="notebook" id="notebook"></p>
+  </section>
+
+  <section class="next">
+    <div class="name-row">
+      <label for="name" class="label">Your name</label>
+      <input id="name" autocomplete="given-name" placeholder="e.g. Anu">
+    </div>
+    <a class="btn btn-primary" id="nextBtn" href="#banana" style="text-decoration:none">Next: B for Banana →</a>
+  </section>
+</div>
+
+<script>
+const FRUITS = [
+ { id:'apple', L:'A', word:'Apple', model:'models/apple.glb', orbit:'20deg 72deg 0.55m', target:'0m 0.08m 0m',
+   phonics:'A is for apple. a, a, apple!',
+   script:[
+     ['Hello {name}! I am Pip. Today we explore the letter A.'],
+     ['A says a, a. A is for apple!'],
+     ['An apple is a round fruit. It grows on an apple tree.'],
+     ['This is the skin. It keeps the apple safe inside.','skin'],
+     ['This little brown stick is the stalk. It held the apple on the tree.','stalk'],
+     ['And this is a leaf. Leaves help the tree make food from sunlight.','leaf'],
+     ['Inside the apple is soft flesh, and a core with small brown seeds.','inside'],
+     ['Tap “See it on my table” to put the apple in your room. Then try my questions!']
+   ],
+   parts:[
+     {k:'skin', name:'Skin', note:'Thin and shiny', pos:'0.094m 0.07m 0.02m', normal:'1m 0m 0m', say:'The skin is thin and shiny. It can be red, green or yellow.'},
+     {k:'stalk', name:'Stalk', note:'Held it on the tree', pos:'0.012m 0.176m 0.003m', normal:'0m 1m 0m', say:'The stalk joined the apple to its tree.'},
+     {k:'leaf', name:'Leaf', note:'Makes food from sun', pos:'0.045m 0.18m -0.03m', normal:'0m 1m 0m', say:'A leaf. Leaves use sunlight to make food for the tree.'},
+     {k:'inside', name:'Flesh & seeds', note:'Inside the apple', pos:'0m 0.07m 0.094m', normal:'0m 0m 1m', say:'Inside is the crunchy flesh we eat, and the core with tiny seeds.'}
+   ],
+   fact:'An apple seed can grow into a whole apple tree. The tree takes a few years before it gives apples.',
+   quiz:[
+     {q:'Which letter does apple start with?', o:['A','B','P'], a:0},
+     {q:'Where do apples grow?', o:['Under the ground','On trees','In the sea'], a:1},
+     {q:'What is inside an apple?', o:['Seeds','Stones','Water only'], a:0}
+   ],
+   notebook:'In your notebook: draw an apple. Label the skin, stalk and seeds.'
+ },
+ { id:'banana', L:'B', word:'Banana', model:'models/banana.glb', orbit:'0deg 75deg 0.75m', target:'0m 0.07m 0m',
+   phonics:'B is for banana. b, b, banana!',
+   script:[
+     ['Hi {name}! Now we explore the letter B.'],
+     ['B says b, b. B is for banana!'],
+     ['A banana is long and curved. Bananas grow in big bunches.'],
+     ['This is the peel. It is green at first and turns yellow when the banana is ripe.','peel'],
+     ['Here is the stem end. It joined the banana to the bunch.','stem'],
+     ['This dark spot is the tip, where a flower once was.','tip'],
+     ['Inside is soft, sweet fruit. The tiny black dots are its seeds.','inside'],
+     ['Put the banana on your table, then answer my questions!']
+   ],
+   parts:[
+     {k:'peel', name:'Peel', note:'Green, then yellow', pos:'0m 0.03m 0.031m', normal:'0m 0m 1m', say:'The peel protects the soft banana inside. We peel it before eating.'},
+     {k:'stem', name:'Stem end', note:'Joined to the bunch', pos:'-0.19m 0.152m 0m', normal:'-1m 0m 0m', say:'The stem end held the banana in the bunch.'},
+     {k:'tip', name:'Tip', note:'Where the flower was', pos:'0.165m 0.12m 0m', normal:'1m 0m 0m', say:'At the tip, a little flower once grew.'},
+     {k:'inside', name:'Fruit & seeds', note:'Soft and sweet', pos:'0m 0.005m 0m', normal:'0m -1m 0m', say:'Inside is soft, sweet fruit with tiny black seeds.'}
+   ],
+   fact:'India grows more bananas than any other country in the world. A bunch of bananas is called a hand, and one banana is a finger!',
+   quiz:[
+     {q:'Which letter does banana start with?', o:['D','B','N'], a:1},
+     {q:'What colour is a ripe banana?', o:['Yellow','Blue','Black'], a:0},
+     {q:'What do we call a bunch of bananas?', o:['A hand','A foot','A tree'], a:0}
+   ],
+   notebook:'In your notebook: draw a bunch of bananas. Colour one green and one yellow.'
+ },
+ { id:'cherry', L:'C', word:'Cherry', model:'models/cherry.glb', orbit:'0deg 75deg 0.7m', target:'0m 0.12m 0m',
+   phonics:'C is for cherry. ch, ch, cherry!',
+   script:[
+     ['Hello {name}! Let us explore the letter C.'],
+     ['In cherry, C and H say ch, ch. Cherry!'],
+     ['Cherries are small, round and shiny. They often grow in pairs.'],
+     ['This is the fruit. It is red, juicy and sweet.','fruit'],
+     ['These long green stalks hold the cherries to the tree.','stalk'],
+     ['Here is a leaf from the cherry tree.','leaf'],
+     ['Inside each cherry is one hard stone. Do not eat the stone!','stone'],
+     ['Put the cherries on your table, then try my questions!']
+   ],
+   parts:[
+     {k:'fruit', name:'Fruit', note:'Red and juicy', pos:'-0.045m 0.04m 0.05m', normal:'0m 0m 1m', say:'The cherry fruit is red, round and juicy.'},
+     {k:'stalk', name:'Stalks', note:'Long and green', pos:'-0.02m 0.19m 0m', normal:'0m 0m 1m', say:'Two long stalks join at the top, like a V.'},
+     {k:'leaf', name:'Leaf', note:'From the cherry tree', pos:'0.04m 0.245m -0.02m', normal:'0m 1m 0m', say:'A cherry leaf has a pointed end.'},
+     {k:'stone', name:'Stone', note:'One hard seed inside', pos:'0.05m 0.045m 0.05m', normal:'0m 0m 1m', say:'Each cherry hides one hard stone. That is its seed.'}
+   ],
+   fact:'Cherry trees like cool weather. In India they grow in the hills of Kashmir and Himachal Pradesh.',
+   quiz:[
+     {q:'Which letter does cherry start with?', o:['S','K','C'], a:2},
+     {q:'How many stones are inside one cherry?', o:['One','Ten','None'], a:0},
+     {q:'Cherries often grow in…', o:['Pairs','Boxes','Shells'], a:0}
+   ],
+   notebook:'In your notebook: draw two cherries joined at the top. Count the stalks.'
+ },
+ { id:'dates', L:'D', word:'Dates', model:'models/dates.glb', orbit:'20deg 58deg 0.5m', target:'0m 0.03m 0.02m',
+   phonics:'D is for dates. d, d, dates!',
+   script:[
+     ['Hi {name}! Now the letter D.'],
+     ['D says d, d. D is for dates!'],
+     ['Dates are sweet brown fruits. They grow on tall date palm trees.'],
+     ['Look at the skin. It is brown and wrinkly.','skin'],
+     ['Dates are long and oval, like a little egg.','shape'],
+     ['Inside a date there is one long seed.','seed'],
+     ['Date palms grow in hot, dry places, in big hanging bunches.'],
+     ['Put the dates on your table, then answer my questions!']
+   ],
+   parts:[
+     {k:'skin', name:'Skin', note:'Brown and wrinkly', pos:'0m 0.03m 0.09m', normal:'0m 0m 1m', say:'The skin is thin, brown and wrinkly.'},
+     {k:'shape', name:'Shape', note:'Long and oval', pos:'-0.09m 0.03m 0m', normal:'-1m 0m 0m', say:'A date is long and oval.'},
+     {k:'seed', name:'Seed', note:'One long seed', pos:'0.07m 0.045m 0.01m', normal:'1m 0m 0m', say:'Inside is one long, hard seed.'}
+   ],
+   fact:'People in hot desert lands have eaten dates for thousands of years. One date palm can give over 100 kilograms of dates in a year.',
+   quiz:[
+     {q:'Which letter does dates start with?', o:['D','B','T'], a:0},
+     {q:'Dates grow on…', o:['Palm trees','Bushes in snow','Water'], a:0},
+     {q:'How do dates taste?', o:['Sweet','Salty','Sour'], a:0}
+   ],
+   notebook:'In your notebook: draw a date palm tree with a bunch of dates.'
+ },
+ { id:'elderberry', L:'E', word:'Elderberry', model:'models/elderberry.glb', orbit:'0deg 55deg 0.6m', target:'0m 0.13m 0m',
+   phonics:'E is for elderberry. e, e, elderberry!',
+   script:[
+     ['Hello {name}! Let us explore the letter E.'],
+     ['E says e, e. E is for elderberry!'],
+     ['Elderberries are tiny, dark purple berries. They grow in big flat bunches.'],
+     ['Each little ball is one berry.','berry'],
+     ['Thin red stalks spread out like an umbrella.','stalks'],
+     ['A strong stem holds the whole bunch.','stem'],
+     ['Important! Raw elderberries can make you sick. Grown-ups cook them first.'],
+     ['Put the berries on your table, then try my questions!']
+   ],
+   parts:[
+     {k:'berry', name:'Berries', note:'Tiny and purple', pos:'0.065m 0.19m 0m', normal:'0m 1m 0m', say:'Each tiny ball is an elderberry.'},
+     {k:'stalks', name:'Stalks', note:'Like an umbrella', pos:'0.03m 0.14m 0.0m', normal:'0m 0m 1m', say:'The stalks spread out like an umbrella.'},
+     {k:'stem', name:'Stem', note:'Holds the bunch', pos:'0.004m 0.05m 0m', normal:'0m 0m 1m', say:'One strong stem holds the whole bunch.'}
+   ],
+   fact:'Before the berries, the elder bush is covered in tiny white flowers. Each flower turns into one berry.',
+   safety:'Never eat raw elderberries. They must be cooked by a grown-up first.',
+   quiz:[
+     {q:'Which letter does elderberry start with?', o:['A','E','L'], a:1},
+     {q:'What colour are ripe elderberries?', o:['Dark purple','Orange','White'], a:0},
+     {q:'Can we eat raw elderberries?', o:['Yes, any time','No, cook them first'], a:1}
+   ],
+   notebook:'In your notebook: draw a bunch of elderberries. Count how many you drew.'
+ },
+ { id:'fig', L:'F', word:'Fig', model:'models/fig.glb', orbit:'15deg 75deg 0.6m', target:'0m 0.08m 0m',
+   phonics:'F is for fig. f, f, fig!',
+   script:[
+     ['Hi {name}! Last one: the letter F.'],
+     ['F says f, f. F is for fig!'],
+     ['A fig is soft and shaped like a drop of water. In India, dried figs are called anjeer.'],
+     ['This is the skin. It is purple and soft.','skin'],
+     ['Here is the stalk at the top.','stalk'],
+     ['At the bottom is a tiny hole called the eye.','eye'],
+     ['Inside, a fig is full of tiny seeds. They go crunch when you chew!','inside'],
+     ['Put the fig on your table, then answer my questions!']
+   ],
+   parts:[
+     {k:'skin', name:'Skin', note:'Purple and soft', pos:'0.076m 0.045m 0m', normal:'1m 0m 0m', say:'The fig skin is purple, green near the top.'},
+     {k:'stalk', name:'Stalk', note:'At the top', pos:'0.01m 0.19m 0m', normal:'0m 1m 0m', say:'The short stalk joined the fig to its tree.'},
+     {k:'eye', name:'Eye', note:'Tiny hole at the bottom', pos:'0m 0.002m 0m', normal:'0m -1m 0m', say:'This tiny hole is called the eye.'},
+     {k:'inside', name:'Seeds', note:'Many tiny seeds', pos:'0m 0.07m 0.074m', normal:'0m 0m 1m', say:'Inside are hundreds of tiny crunchy seeds.'}
+   ],
+   fact:'A fig is full of tiny flowers that grow on the inside, where you cannot see them!',
+   quiz:[
+     {q:'Which letter does fig start with?', o:['F','V','P'], a:0},
+     {q:'What is inside a fig?', o:['Tiny seeds','One big stone','Air'], a:0},
+     {q:'Dried figs in India are called…', o:['Anjeer','Badam','Kaju'], a:0}
+   ],
+   notebook:'In your notebook: draw a fig cut in half. Add lots of tiny seeds.'
+ }
+];
+
+const $ = id => document.getElementById(id);
+const mv = $('mv'), stage = $('stage');
+let fruit = FRUITS[0], soundOn = true, run = 0, qi = 0, stars = 0;
+const store = { get(k){ try{ return localStorage.getItem(k) }catch(e){ return null } }, set(k,v){ try{ localStorage.setItem(k,v) }catch(e){} } };
+$('name').value = store.get('sb-name') || '';
+$('name').addEventListener('input', e => store.set('sb-name', e.target.value.trim()));
+const childName = () => $('name').value.trim() || 'friend';
+
+/* ---------- voice ---------- */
+let voice = null;
+function pickVoice(){
+  const vs = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
+  voice = vs.find(v => /en-IN/i.test(v.lang)) || vs.find(v => /en-GB/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
+}
+if (window.speechSynthesis){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+
+function setBubble(text){
+  const say = $('say'); say.textContent = '';
+  const words = []; let idx = 0;
+  text.split(/(\s+)/).forEach(t => {
+    if (/^\s+$/.test(t) || !t){ say.append(t); idx += t.length; return; }
+    const s = document.createElement('span'); s.className = 'w'; s.textContent = t; s.dataset.i = idx; s.dataset.e = idx + t.length;
+    say.append(s); words.push(s); idx += t.length;
+  });
+  return words;
+}
+function speak(text, token){
+  const words = setBubble(text);
+  return new Promise(res => {
+    const fallback = () => { const t = Math.max(1800, text.split(' ').length * 380); setTimeout(res, t); };
+    if (!soundOn || !window.speechSynthesis){ fallback(); return; }
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text.replace(/[“”]/g,''));
+    if (voice) u.voice = voice;
+    u.lang = voice ? voice.lang : 'en-IN'; u.rate = .88; u.pitch = 1.2;
+    let done = false; const fin = () => { if (done) return; done = true; stage.classList.remove('talking'); words.forEach(w => w.classList.remove('on')); res(); };
+    u.onstart = () => stage.classList.add('talking');
+    u.onboundary = e => { words.forEach(w => w.classList.toggle('on', e.charIndex >= +w.dataset.i && e.charIndex < +w.dataset.e)); };
+    u.onend = fin; u.onerror = fin;
+    stage.classList.add('talking');
+    speechSynthesis.speak(u);
+    setTimeout(fin, Math.max(4000, text.length * 120)); // safety net if the browser never fires onend
+  });
+}
+function stopVoice(){ run++; if (window.speechSynthesis) speechSynthesis.cancel(); stage.classList.remove('talking'); }
+
+/* ---------- 3D focus ---------- */
+const rad = k => (parseFloat(fruit.orbit.split(' ')[2]) * k * (mv.clientWidth < 520 ? 1.45 : 1)).toFixed(3);
+function focusPart(p){
+  document.querySelectorAll('.hs').forEach(h => h.classList.toggle('active', h.dataset.k === (p && p.k)));
+  document.querySelectorAll('.part').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === (p && p.k))));
+  if (!p){ return; }
+  mv.autoRotate = false;
+  const [x,y,z] = p.pos.split(' ').map(parseFloat);
+  const [nx,ny,nz] = p.normal.split(' ').map(parseFloat);
+  const theta = Math.abs(nx) + Math.abs(nz) > 0.01 ? Math.atan2(nx, nz) * 180 / Math.PI : 20;
+  const phi = ny > 0.5 ? 35 : ny < -0.5 ? 140 : 72;
+  mv.cameraTarget = `${x*0.5}m ${y*0.6 + parseFloat(fruit.target.split(' ')[1])*0.4}m ${z*0.5}m`;
+  mv.cameraOrbit = `${theta}deg ${phi}deg ${rad(0.8)}m`;
+}
+function resetView(){
+  focusPart(null);
+  mv.cameraTarget = fruit.target; mv.cameraOrbit = fruit.orbit.split(' ').slice(0,2).join(' ') + ' ' + rad(1) + 'm'; mv.autoRotate = true;
+}
+$('reset').onclick = () => { stopVoice(); resetView(); };
+
+/* ---------- lesson run ---------- */
+async function lesson(){
+  stopVoice(); const me = run; resetView();
+  $('start').querySelector('span').textContent = 'Listen again';
+  for (const [line, k] of fruit.script){
+    if (me !== run) return;
+    const p = k ? fruit.parts.find(x => x.k === k) : null;
+    if (p) focusPart(p);
+    await speak(line.replace('{name}', childName()), me);
+    await new Promise(r => setTimeout(r, 350));
+  }
+  if (me === run) resetView();
+}
+$('start').onclick = lesson;
+$('sound').onclick = () => {
+  soundOn = !soundOn; $('sound').setAttribute('aria-pressed', soundOn); $('soundTxt').textContent = soundOn ? 'Sound on' : 'Sound off';
+  $('wave').style.display = soundOn ? '' : 'none'; if (!soundOn && window.speechSynthesis) speechSynthesis.cancel();
+};
+
+/* ---------- quiz ---------- */
+const starSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.8 2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9L12 2.8Z"/></svg>';
+function renderScore(){
+  $('score').innerHTML = fruit.quiz.map((_, i) => `<span class="${i < stars ? 'on' : ''}">${starSvg}</span>`).join('');
+  $('score').setAttribute('aria-label', `${stars} of ${fruit.quiz.length} stars`);
+}
+function renderQ(){
+  $('fb').textContent = ''; $('fb').className = 'feedback';
+  if (qi >= fruit.quiz.length){
+    $('q').textContent = `Well done, ${childName()}! You found ${stars} of ${fruit.quiz.length} stars.`;
+    $('opts').innerHTML = ''; $('hearQ').hidden = true; $('again').hidden = false; renderScore();
+    return;
+  }
+  $('hearQ').hidden = false; $('again').hidden = true;
+  const Q = fruit.quiz[qi]; $('q').textContent = Q.q; $('opts').innerHTML = '';
+  let tries = 0;
+  Q.o.forEach((o, i) => {
+    const b = document.createElement('button'); b.className = 'opt'; b.type = 'button'; b.textContent = o;
+    b.onclick = () => {
+      if (i === Q.a){
+        b.classList.add('right'); if (tries === 0) stars++; renderScore();
+        $('fb').textContent = 'Yes! ' + o + ' is right.'; $('fb').className = 'feedback good';
+        if (soundOn) speak('Yes! You looked carefully.');
+        $('opts').querySelectorAll('button').forEach(x => x.disabled = true);
+        setTimeout(() => { qi++; renderQ(); }, 1400);
+      } else {
+        tries++; b.classList.add('wrong'); b.disabled = true;
+        $('fb').textContent = 'Almost! Try another one.'; $('fb').className = 'feedback bad';
+        if (soundOn) speak('Almost! Try again.');
+      }
+    };
+    $('opts').append(b);
+  });
+  renderScore();
+}
+$('hearQ').onclick = () => { const Q = fruit.quiz[qi]; if (Q) speak(Q.q + ' ' + Q.o.join(', or ') + '?'); };
+$('again').onclick = () => { qi = 0; stars = 0; renderQ(); };
+
+/* ---------- load a fruit ---------- */
+function load(id){
+  stopVoice();
+  fruit = FRUITS.find(f => f.id === id || f.L.toLowerCase() === id) || FRUITS[0];
+  const i = FRUITS.indexOf(fruit);
+  $('letters').innerHTML = FRUITS.map(f => `<a href="#${f.id}" aria-label="${f.L} for ${f.word}" ${f === fruit ? 'aria-current="page"' : ''}>${f.L}</a>`).join('');
+  $('pair').innerHTML = `${fruit.L}<small>${fruit.L.toLowerCase()}</small>`;
+  $('word').innerHTML = `<span class="first">${fruit.word[0]}</span>${fruit.word.slice(1).toLowerCase()}`;
+  $('phonics').textContent = fruit.phonics;
+  $('start').querySelector('span').textContent = 'Learn with Pip';
+  setBubble(`Hi! I'm Pip. Tap “Learn with Pip” and I'll show you the ${fruit.word.toLowerCase()}.`);
+  mv.src = fruit.model; mv.alt = `A 3D ${fruit.word.toLowerCase()} you can turn`;
+  mv.querySelectorAll('.hs').forEach(h => h.remove());
+  fruit.parts.forEach(p => {
+    const h = document.createElement('button');
+    h.className = 'hs'; h.slot = 'hotspot-' + p.k; h.dataset.k = p.k; h.dataset.position = p.pos; h.dataset.normal = p.normal;
+    h.setAttribute('aria-label', p.name); h.innerHTML = `<span class="tag">${p.name}</span>`;
+    h.onclick = () => { stopVoice(); focusPart(p); speak(p.say); };
+    mv.append(h);
+  });
+  $('parts').innerHTML = '';
+  fruit.parts.forEach(p => {
+    const b = document.createElement('button'); b.className = 'part'; b.type = 'button'; b.dataset.k = p.k; b.setAttribute('aria-pressed','false');
+    b.innerHTML = `<b>${p.name}</b><span>${p.note}</span>`;
+    b.onclick = () => { stopVoice(); focusPart(p); speak(p.say); $('stage').scrollIntoView({behavior:'smooth', block:'center'}); };
+    $('parts').append(b);
+  });
+  $('fact').textContent = fruit.fact;
+  $('safety').hidden = !fruit.safety; $('safety').textContent = fruit.safety || '';
+  $('notebook').textContent = fruit.notebook;
+  const nx = FRUITS[(i + 1) % FRUITS.length];
+  $('nextBtn').href = '#' + nx.id; $('nextBtn').textContent = i === FRUITS.length - 1 ? 'Start again: A for Apple →' : `Next: ${nx.L} for ${nx.word} →`;
+  qi = 0; stars = 0; renderQ(); resetView();
+  window.scrollTo({top:0});
+}
+mv.addEventListener('load', () => { $('hint').hidden = false; });
+mv.addEventListener('camera-change', e => { if (e.detail.source === 'user') $('hint').hidden = true; });
+customElements.whenDefined('model-viewer').then(() => {
+  if (!mv.canActivateAR) $('arNote').textContent = 'AR works on phones: open this lesson on an Android phone (Chrome) or iPhone (Safari) and tap “See it on my table”.';
+});
+window.addEventListener('hashchange', () => load(location.hash.slice(1)));
+load(location.hash.slice(1) || 'apple');
+</script>
+
+</body>
+</html>
