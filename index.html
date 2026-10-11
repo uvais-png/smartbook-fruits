@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@600;700;800&family=Lexend:wght@400;500;600&display=swap">
 <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" onload="renderQR()"></script>
 <style>
 /* Layout: one column lesson (letter → Pip's 3D stage → parts → fact → check), max 720px, Smart Book tokens */
 :root{
@@ -126,10 +127,21 @@ model-viewer{width:100%;height:min(62vh,520px);min-height:380px;background:trans
 
 .next{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .name-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.name-row select{min-height:44px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;padding:0 8px;max-width:260px}
 .name-row input{min-height:44px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;padding:0 12px;width:150px}
 .ar-note{font-size:13px;color:var(--ink-muted)}
 
+/* scan banner: for grown-ups, same colours in light and dark */
+.scan{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;background:#32493A;color:#C9DDBE;border-radius:var(--r-lg);padding:32px 28px}
+.scan .label{color:#B5CFA5;letter-spacing:.18em}
+.scan h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:34px;color:#FBF8EF;margin:12px 0 14px}
+.scan a{display:inline-block;margin-top:18px;color:#FFFFFF;text-underline-offset:5px}
+.scan canvas{display:block;width:176px;height:176px;background:#FFFFFF;border-radius:var(--r-md);padding:6px;image-rendering:pixelated}
+
 @media (max-width:560px){
+  .scan{grid-template-columns:1fr;padding:24px 20px}
+  .scan h2{font-size:30px}
+  .scan canvas{justify-self:center}
   .hero{grid-template-columns:1fr;padding:18px}
   .pair{font-size:96px}
   .word{font-size:38px}
@@ -223,7 +235,22 @@ model-viewer{width:100%;height:min(62vh,520px);min-height:380px;background:trans
       <label for="name" class="label">Your name</label>
       <input id="name" autocomplete="given-name" placeholder="e.g. Anu">
     </div>
+    <div class="name-row voice-row" hidden>
+      <label for="voiceSel" class="label">Pip's voice</label>
+      <select id="voiceSel"></select>
+    </div>
     <a class="btn btn-primary" id="nextBtn" href="#banana" style="text-decoration:none">Next: B for Banana →</a>
+  </section>
+
+  <section class="scan" id="scan" aria-labelledby="scanH" hidden>
+    <div>
+      <span class="label">From your textbook to your table</span>
+      <h2 id="scanH">Scan. Explore. Discover.</h2>
+      <p id="scanTxt">Scan to open the apple activity on your phone.</p>
+      <p>No account needed. AR requires a supported phone.</p>
+      <a id="qrDl" href="#" download="smartbook-apple-qr.png">Download the classroom QR code ↓</a>
+    </div>
+    <canvas id="qr" role="img" aria-label="QR code for the apple activity"></canvas>
   </section>
 </div>
 
@@ -395,10 +422,41 @@ $('name').addEventListener('input', e => store.set('sb-name', e.target.value.tri
 const childName = () => $('name').value.trim() || 'friend';
 
 /* ---------- voice ---------- */
-let voice = null;
+// 1) Recorded neural voice: audio/manifest.json maps a line key -> mp3 file. Used first when present.
+// 2) Otherwise the best Indian-English voice on the device (Google / Microsoft Natural / Apple en-IN).
+const AUDIO = {}; let curAudio = null;
+fetch('audio/manifest.json', {cache:'no-cache'}).then(r => r.ok ? r.json() : {}).then(m => Object.assign(AUDIO, m)).catch(() => {});
+function keyOf(t){ let h = 5381; for (const ch of t) h = (((h << 5) + h) + ch.codePointAt(0)) >>> 0; return h.toString(16); }
+const spokenForm = t => t.replace(/[“”]/g, '').replace(/\s*\{name\}/g, '').replace(/\s+/g, ' ').trim();
+
+let voice = null, voices = [];
+const VKEY = 'sb-voice';
+function vScore(v){
+  const n = v.name.toLowerCase(), l = v.lang.toLowerCase().replace('_', '-');
+  if (!l.startsWith('en')) return -1;
+  let s = l === 'en-in' ? 100 : (l === 'en-gb' ? 20 : 10);
+  if (/natural|neural/.test(n)) s += 45;
+  if (/online/.test(n)) s += 15;
+  if (/google/.test(n)) s += 30;
+  if (/neerja|veena|isha|heera|kajal|aditi|raveena|swara/.test(n)) s += 25; // female en-IN voices
+  if (/prabhat|rishi|ravi/.test(n)) s += 18;                                    // male en-IN voices
+  if (/enhanced|premium/.test(n)) s += 15;
+  if (!v.localService) s += 5;
+  return s;
+}
 function pickVoice(){
-  const vs = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
-  voice = vs.find(v => /en-IN/i.test(v.lang)) || vs.find(v => /en-GB/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
+  const all = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
+  voices = all.filter(v => vScore(v) >= 0).sort((a, b) => vScore(b) - vScore(a));
+  let saved = null; try { saved = localStorage.getItem(VKEY); } catch(e){}
+  voice = voices.find(v => v.name === saved) || voices[0] || null;
+  const sel = $('voiceSel'); if (!sel) return;
+  sel.innerHTML = '';
+  voices.slice(0, 12).forEach(v => {
+    const o = document.createElement('option'); o.value = v.name;
+    o.textContent = (v.lang.replace('_','-').toLowerCase() === 'en-in' ? 'Indian English · ' : v.lang + ' · ') + v.name.replace(/Microsoft |Google |\(.*?\)/g, '').trim();
+    if (voice && v.name === voice.name) o.selected = true; sel.append(o);
+  });
+  sel.closest('.voice-row').hidden = voices.length < 2 || Object.keys(AUDIO).length > 0;
 }
 if (window.speechSynthesis){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
 
@@ -412,25 +470,47 @@ function setBubble(text){
   });
   return words;
 }
-function speak(text, token){
+function speak(text, keyText){
   const words = setBubble(text);
+  const key = keyOf(spokenForm(keyText || text));
   return new Promise(res => {
-    const fallback = () => { const t = Math.max(1800, text.split(' ').length * 380); setTimeout(res, t); };
-    if (!soundOn || !window.speechSynthesis){ fallback(); return; }
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text.replace(/[“”]/g,''));
-    if (voice) u.voice = voice;
-    u.lang = voice ? voice.lang : 'en-IN'; u.rate = .88; u.pitch = 1.2;
-    let done = false; const fin = () => { if (done) return; done = true; stage.classList.remove('talking'); words.forEach(w => w.classList.remove('on')); res(); };
-    u.onstart = () => stage.classList.add('talking');
-    u.onboundary = e => { words.forEach(w => w.classList.toggle('on', e.charIndex >= +w.dataset.i && e.charIndex < +w.dataset.e)); };
-    u.onend = fin; u.onerror = fin;
-    stage.classList.add('talking');
-    speechSynthesis.speak(u);
-    setTimeout(fin, Math.max(4000, text.length * 120)); // safety net if the browser never fires onend
+    let done = false;
+    const fin = () => { if (done) return; done = true; stage.classList.remove('talking'); words.forEach(w => w.classList.remove('on')); res(); };
+    const quiet = () => { const t = Math.max(1800, text.split(' ').length * 380); setTimeout(fin, t); };
+    if (!soundOn){ quiet(); return; }
+    const tts = () => {
+      if (!window.speechSynthesis){ quiet(); return; }
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text.replace(/[“”]/g,''));
+      if (voice) u.voice = voice;
+      u.lang = voice ? voice.lang : 'en-IN'; u.rate = .94; u.pitch = 1.04;
+      u.onstart = () => stage.classList.add('talking');
+      u.onboundary = e => { words.forEach(w => w.classList.toggle('on', e.charIndex >= +w.dataset.i && e.charIndex < +w.dataset.e)); };
+      u.onend = fin; u.onerror = fin;
+      stage.classList.add('talking');
+      speechSynthesis.speak(u);
+      setTimeout(fin, Math.max(4000, text.length * 120));
+    };
+    if (AUDIO[key]){
+      if (window.speechSynthesis) speechSynthesis.cancel();
+      if (curAudio){ curAudio.pause(); }
+      const a = curAudio = new Audio(AUDIO[key]);
+      const total = text.length;
+      a.ontimeupdate = () => {
+        if (!a.duration) return;
+        const c = a.currentTime / a.duration * total;
+        words.forEach(w => w.classList.toggle('on', c >= +w.dataset.i && c < +w.dataset.e + 1));
+      };
+      a.onplay = () => stage.classList.add('talking');
+      a.onended = fin; a.onpause = () => { if (a.ended || a !== curAudio || a.currentTime > 0) fin(); };
+      a.onerror = () => { if (!done) tts(); };
+      a.play().catch(() => { if (!done) tts(); });
+      return;
+    }
+    tts();
   });
 }
-function stopVoice(){ run++; if (window.speechSynthesis) speechSynthesis.cancel(); stage.classList.remove('talking'); }
+function stopVoice(){ run++; if (window.speechSynthesis) speechSynthesis.cancel(); if (curAudio){ const a = curAudio; curAudio = null; a.pause(); } stage.classList.remove('talking'); }
 
 /* ---------- 3D focus ---------- */
 const rad = k => (parseFloat(fruit.orbit.split(' ')[2]) * k * (mv.clientWidth < 520 ? 1.45 : 1)).toFixed(3);
@@ -460,12 +540,13 @@ async function lesson(){
     if (me !== run) return;
     const p = k ? fruit.parts.find(x => x.k === k) : null;
     if (p) focusPart(p);
-    await speak(line.replace('{name}', childName()), me);
+    await speak(line.replace('{name}', childName()), line);
     await new Promise(r => setTimeout(r, 350));
   }
   if (me === run) resetView();
 }
 $('start').onclick = lesson;
+$('voiceSel').onchange = e => { voice = voices.find(v => v.name === e.target.value) || voice; try { localStorage.setItem(VKEY, voice.name); } catch(err){} stopVoice(); speak('Hello! I am Pip. Shall we learn about fruits?'); };
 $('sound').onclick = () => {
   soundOn = !soundOn; $('sound').setAttribute('aria-pressed', soundOn); $('soundTxt').textContent = soundOn ? 'Sound on' : 'Sound off';
   $('wave').style.display = soundOn ? '' : 'none'; if (!soundOn && window.speechSynthesis) speechSynthesis.cancel();
@@ -509,6 +590,21 @@ function renderQ(){
 $('hearQ').onclick = () => { const Q = fruit.quiz[qi]; if (Q) speak(Q.q + ' ' + Q.o.join(', or ') + '?'); };
 $('again').onclick = () => { qi = 0; stars = 0; renderQ(); };
 
+/* ---------- classroom QR ---------- */
+// Points at this lesson's own address, so it keeps working if the site moves. Stays hidden if the QR library did not load.
+function renderQR(){
+  if (!window.qrcode) return;
+  const name = fruit.word.toLowerCase(), c = $('qr'), cell = 24, pad = 4 * cell;
+  const qr = qrcode(0, 'M'); qr.addData(location.origin + location.pathname + '#' + fruit.id); qr.make();
+  const n = qr.getModuleCount(); c.width = c.height = n * cell + pad * 2;
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.fillStyle = '#000';
+  for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (qr.isDark(r, k)) g.fillRect(pad + k * cell, pad + r * cell, cell, cell);
+  c.setAttribute('aria-label', `QR code for the ${name} activity`);
+  $('scanTxt').textContent = `Scan to open the ${name} activity on your phone.`;
+  $('qrDl').href = c.toDataURL('image/png'); $('qrDl').download = `smartbook-${fruit.id}-qr.png`;
+  $('scan').hidden = false;
+}
+
 /* ---------- load a fruit ---------- */
 function load(id){
   stopVoice();
@@ -541,7 +637,7 @@ function load(id){
   $('notebook').textContent = fruit.notebook;
   const nx = FRUITS[(i + 1) % FRUITS.length];
   $('nextBtn').href = '#' + nx.id; $('nextBtn').textContent = i === FRUITS.length - 1 ? 'Start again: A for Apple →' : `Next: ${nx.L} for ${nx.word} →`;
-  qi = 0; stars = 0; renderQ(); resetView();
+  qi = 0; stars = 0; renderQ(); resetView(); renderQR();
   window.scrollTo({top:0});
 }
 mv.addEventListener('load', () => { $('hint').hidden = false; });
