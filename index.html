@@ -132,6 +132,12 @@ model-viewer{width:100%;height:min(62vh,520px);min-height:380px;background:trans
 .name-row input{min-height:44px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;padding:0 12px;width:150px}
 .ar-note{font-size:13px;color:var(--ink-muted)}
 
+/* one-tap AR prompt, shown when the page was opened from the classroom QR */
+.ar-ask{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:24px;background:rgba(23,35,64,.55)}
+.ar-card{background:var(--card);border-radius:var(--r-lg);padding:28px 24px;max-width:360px;width:100%;display:flex;flex-direction:column;gap:14px;
+  text-align:center;box-shadow:var(--shadow-card)}
+.ar-card .btn{justify-content:center}
+
 /* scan banner: for grown-ups, same colours in light and dark */
 .scan{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;background:#32493A;color:#C9DDBE;border-radius:var(--r-lg);padding:32px 28px}
 .scan .label{color:#B5CFA5;letter-spacing:.18em}
@@ -253,6 +259,15 @@ model-viewer{width:100%;height:min(62vh,520px);min-height:380px;background:trans
     </div>
     <canvas id="qr" role="img" aria-label="QR code for the apple activity"></canvas>
   </section>
+</div>
+
+<div class="ar-ask" id="arAsk" role="dialog" aria-labelledby="arAskH" hidden>
+  <div class="ar-card">
+    <h2 id="arAskH">A for Apple</h2>
+    <p>Point your camera at a table or the floor.</p>
+    <button class="btn btn-ar" id="arGo" type="button">See it on my table</button>
+    <button class="btn btn-quiet" id="arSkip" type="button">Start the lesson</button>
+  </div>
 </div>
 
 <script>
@@ -612,11 +627,12 @@ $('hearQ').onclick = () => { const Q = fruit.quiz[qi]; if (Q) speak(Q.q + ' ' + 
 $('again').onclick = () => { qi = 0; stars = 0; renderQ(); };
 
 /* ---------- classroom QR ---------- */
-// Points at this lesson's own address, so it keeps working if the site moves. Stays hidden if the QR library did not load.
+// Points at this lesson's own address, so it keeps working if the site moves. ?ar sends a phone straight to AR (see below).
+// Stays hidden if the QR library did not load.
 function renderQR(){
   if (!window.qrcode) return;
   const name = fruit.word.toLowerCase(), c = $('qr'), cell = 24, pad = 4 * cell;
-  const qr = qrcode(0, 'M'); qr.addData(location.origin + location.pathname + '#' + fruit.id); qr.make();
+  const qr = qrcode(0, 'M'); qr.addData(location.origin + location.pathname + '?ar#' + fruit.id); qr.make();
   const n = qr.getModuleCount(); c.width = c.height = n * cell + pad * 2;
   const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.fillStyle = '#000';
   for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (qr.isDark(r, k)) g.fillRect(pad + k * cell, pad + r * cell, cell, cell);
@@ -629,14 +645,20 @@ function renderQR(){
 /* ---------- AR: the letter stands next to the fruit ---------- */
 // models/<fruit>-ar.glb is the fruit plus its 3D letter. The page keeps showing the plain fruit, so the letter never
 // turns its back to the child; the letter model is swapped in only while AR is open.
+// An iPhone does not need the swap: Quick Look opens models/<fruit>-ar.usdz (the same scene, with the fruit's
+// colours baked into textures, because Quick Look ignores vertex colours).
 const arModel = () => fruit.model.replace('.glb', '-ar.glb');
+const quickLook = document.createElement('a').relList.supports('ar');
 let arOpen = false, arSession = false;
 async function openAR(e){
   e.stopPropagation();   // model-viewer's own handler would open AR at once, with the plain fruit
-  stopVoice(); arOpen = true; mv.autoRotate = false;
-  if (mv.src !== arModel()){
-    const ready = new Promise(r => mv.addEventListener('load', r, {once:true}));
-    mv.src = arModel(); await ready;
+  stopVoice(); $('arAsk').hidden = true;
+  if (!quickLook){
+    arOpen = true; mv.autoRotate = false;
+    if (mv.src !== arModel()){
+      const ready = new Promise(r => mv.addEventListener('load', r, {once:true}));
+      mv.src = arModel(); await ready;
+    }
   }
   mv.activateAR();
 }
@@ -645,6 +667,8 @@ function closeAR(){
   arOpen = arSession = false; mv.src = fruit.model; resetView();
 }
 $('arBtn').addEventListener('click', openAR);
+$('arGo').addEventListener('click', openAR);
+$('arSkip').onclick = () => { $('arAsk').hidden = true; };
 // Scene Viewer and Quick Look take over the screen, so coming back to the page (or touching it again) means AR is closed.
 // WebXR stays on the page and reports its own end.
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !arSession) closeAR(); });
@@ -666,6 +690,7 @@ function load(id){
   $('start').querySelector('span').textContent = 'Learn with Fenn';
   setBubble(`Hi! I'm Fenn, the explorer fox. Tap “Learn with Fenn” and I'll show you the ${fruit.word.toLowerCase()}.`);
   mv.src = fruit.model; mv.alt = `A 3D ${fruit.word.toLowerCase()} you can turn`;
+  mv.iosSrc = arModel().replace('.glb', '.usdz'); $('arAskH').textContent = `${fruit.L} for ${fruit.word}`;
   mv.querySelectorAll('.hs').forEach(h => h.remove());
   fruit.parts.forEach(p => {
     const h = document.createElement('button');
@@ -691,7 +716,12 @@ function load(id){
 }
 mv.addEventListener('load', () => {
   $('hint').hidden = false;
-  if (mv.canActivateAR && !arOpen) fetch(arModel()).catch(() => {});   // warm the cache so AR opens quickly
+  if (mv.canActivateAR && !arOpen && !quickLook) fetch(arModel()).catch(() => {});   // warm the cache so AR opens quickly
+  if (scanned){   // Android: AR may only start from a tap, so ask for one
+    scanned = false;
+    if (mv.canActivateAR) $('arAsk').hidden = false;
+    else setTimeout(() => { $('arAsk').hidden = !mv.canActivateAR; }, 1500);   // AR support can be reported a moment after the model
+  }
 });
 mv.addEventListener('camera-change', e => { if (e.detail.source === 'user') $('hint').hidden = true; });
 customElements.whenDefined('model-viewer').then(() => {
@@ -699,6 +729,15 @@ customElements.whenDefined('model-viewer').then(() => {
 });
 window.addEventListener('hashchange', () => load(location.hash.slice(1)));
 load(location.hash.slice(1) || 'apple');
+
+/* ---------- scanned from the book: straight to AR ---------- */
+// The classroom QR adds ?ar. An iPhone goes straight to the letter and fruit in AR Quick Look; other phones get
+// one big button over the lesson once the model has loaded.
+let scanned = new URLSearchParams(location.search).has('ar');
+if (scanned){
+  history.replaceState(null, '', location.pathname + location.hash);   // so coming back from AR shows the lesson
+  if (quickLook){ scanned = false; location.href = mv.iosSrc; }
+}
 </script>
 
 </body>
