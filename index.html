@@ -261,6 +261,8 @@ model-viewer{width:100%;height:min(62vh,520px);min-height:380px;background:trans
   </section>
 </div>
 
+<a id="arLink" hidden><img alt=""></a>
+
 <div class="ar-ask" id="arAsk" role="dialog" aria-labelledby="arAskH" hidden>
   <div class="ar-card">
     <h2 id="arAskH">A for Apple</h2>
@@ -643,22 +645,36 @@ function renderQR(){
 }
 
 /* ---------- AR: the letter stands next to the fruit ---------- */
-// models/<fruit>-ar.glb is the fruit plus its 3D letter. The page keeps showing the plain fruit, so the letter never
-// turns its back to the child; the letter model is swapped in only while AR is open.
-// An iPhone does not need the swap: Quick Look opens models/<fruit>-ar.usdz (the same scene, with the fruit's
-// colours baked into textures, because Quick Look ignores vertex colours).
+// AR shows the fruit with its 3D letter: models/<fruit>-ar.usdz on an iPhone (Quick Look ignores vertex colours, so the
+// fruit's colours are baked into textures there) and models/<fruit>-ar.glb on Android (Scene Viewer). Both open straight
+// from the tap, through the same links model-viewer would build, so nothing has to load on the page first.
+// The page itself keeps showing the plain fruit, so the letter never turns its back to the child.
 const arModel = () => fruit.model.replace('.glb', '-ar.glb');
-const quickLook = document.createElement('a').relList.supports('ar');
+const ua = navigator.userAgent, ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const quickLook = ios && (document.createElement('a').relList.supports('ar') || /CriOS\/|EdgiOS\/|FxiOS\/|GSA\/|DuckDuckGo\//.test(ua));
+const sceneViewer = /android/i.test(ua) && !/firefox|OculusBrowser/i.test(ua);
+const lessonUrl = extra => location.origin + location.pathname + extra + '#' + fruit.id;
+function sceneViewerLink(){
+  const q = new URLSearchParams({mode:'ar_preferred', disable_occlusion:'true', title:`${fruit.L} for ${fruit.word}`});
+  return `intent://arvr.google.com/scene-viewer/1.2?${q}&file=${encodeURIComponent(new URL(arModel(), location.href))}` +
+    `#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;` +
+    `S.browser_fallback_url=${encodeURIComponent(lessonUrl('?noar'))};end;`;   // ?noar: this phone has no AR viewer
+}
 let arOpen = false, arSession = false;
 async function openAR(e){
-  e.stopPropagation();   // model-viewer's own handler would open AR at once, with the plain fruit
+  e.stopPropagation();   // keep model-viewer's own AR handler out of it
   stopVoice(); $('arAsk').hidden = true;
-  if (!quickLook){
-    arOpen = true; mv.autoRotate = false;
-    if (mv.src !== arModel()){
-      const ready = new Promise(r => mv.addEventListener('load', r, {once:true}));
-      mv.src = arModel(); await ready;
-    }
+  if (quickLook || sceneViewer){
+    const a = $('arLink');
+    a.rel = quickLook ? 'ar' : ''; a.href = quickLook ? mv.iosSrc : sceneViewerLink(); a.click();
+    return;
+  }
+  // Anything else that can do AR (a headset browser, say) uses model-viewer's in-page AR, which shows whatever model
+  // is loaded. So the letter model is swapped in while AR is open and swapped back afterwards.
+  arOpen = true; mv.autoRotate = false;
+  if (mv.src !== arModel()){
+    const ready = new Promise(r => mv.addEventListener('load', r, {once:true}));
+    mv.src = arModel(); await ready;
   }
   mv.activateAR();
 }
@@ -669,8 +685,7 @@ function closeAR(){
 $('arBtn').addEventListener('click', openAR);
 $('arGo').addEventListener('click', openAR);
 $('arSkip').onclick = () => { $('arAsk').hidden = true; };
-// Scene Viewer and Quick Look take over the screen, so coming back to the page (or touching it again) means AR is closed.
-// WebXR stays on the page and reports its own end.
+// In-page AR reports its own end. Coming back to the page, or touching it again, also means AR is closed.
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !arSession) closeAR(); });
 document.addEventListener('pointerdown', e => { if (!arSession && !e.target.closest('#arBtn')) closeAR(); }, true);
 mv.addEventListener('ar-status', e => {
@@ -716,8 +731,8 @@ function load(id){
 }
 mv.addEventListener('load', () => {
   $('hint').hidden = false;
-  if (mv.canActivateAR && !arOpen && !quickLook) fetch(arModel()).catch(() => {});   // warm the cache so AR opens quickly
-  if (scanned){   // Android: AR may only start from a tap, so ask for one
+  if (mv.canActivateAR && !arOpen && !quickLook && !sceneViewer) fetch(arModel()).catch(() => {});   // warm the cache for in-page AR
+  if (scanned){   // in-page AR may only start from a tap, so ask for one
     scanned = false;
     if (mv.canActivateAR) $('arAsk').hidden = false;
     else setTimeout(() => { $('arAsk').hidden = !mv.canActivateAR; }, 1500);   // AR support can be reported a moment after the model
@@ -725,19 +740,22 @@ mv.addEventListener('load', () => {
 });
 mv.addEventListener('camera-change', e => { if (e.detail.source === 'user') $('hint').hidden = true; });
 customElements.whenDefined('model-viewer').then(() => {
-  if (!mv.canActivateAR) $('arNote').textContent = 'AR works on phones: open this lesson on an Android phone (Chrome) or iPhone (Safari) and tap “See it on my table”.';
+  if (!quickLook && !sceneViewer && !mv.canActivateAR) $('arNote').textContent = 'AR works on phones: open this lesson on an Android phone (Chrome) or iPhone (Safari) and tap “See it on my table”.';
 });
 window.addEventListener('hashchange', () => load(location.hash.slice(1)));
 load(location.hash.slice(1) || 'apple');
 
 /* ---------- scanned from the book: straight to AR ---------- */
-// The classroom QR adds ?ar. An iPhone goes straight to the letter and fruit in AR Quick Look; other phones get
-// one big button over the lesson once the model has loaded.
-let scanned = new URLSearchParams(location.search).has('ar');
-if (scanned){
-  history.replaceState(null, '', location.pathname + location.hash);   // so coming back from AR shows the lesson
-  if (quickLook){ scanned = false; location.href = mv.iosSrc; }
+// The classroom QR adds ?ar. A phone gets one big "See it on my table" button over the lesson straight away, because a
+// web page may only start AR from a tap. An iPhone usually never needs it: Safari opens a .usdz in AR by itself.
+const query = new URLSearchParams(location.search);
+let scanned = query.has('ar');
+if (scanned || query.has('noar')) history.replaceState(null, '', location.pathname + location.hash);   // coming back shows the plain lesson
+if (scanned && (quickLook || sceneViewer)){
+  scanned = false; $('arAsk').hidden = false;
+  if (quickLook) location.href = mv.iosSrc;
 }
+if (query.has('noar')) $('arNote').textContent = 'This phone cannot show AR. You can still turn the fruit with your finger.';
 </script>
 
 </body>
